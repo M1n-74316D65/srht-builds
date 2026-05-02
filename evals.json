@@ -1,0 +1,35 @@
+{
+  "skill_name": "srht-builds",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Rust project at https://git.sr.ht/~alice/myapp. I want to run `cargo test` on every push to main, and if tests pass, build a release binary and save it as an artifact. The project uses Alpine. Can you write me a .build.yml?",
+      "expected_output": "A .build.yml file using alpine/latest, packages including rust/cargo, sources pointing to the sr.ht repo, tasks for testing and building, artifacts listing the release binary, and a submitter block restricting to refs/heads/main.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Here's my .build.yml that keeps failing — the build log shows my API_KEY printed in plaintext, and my deploy task can't find the files from the build task:\n\n```yaml\nimage: debian/stable\nenvironment:\n  API_KEY: supersecret123\ntasks:\n  - build: |\n      make dist\n  - deploy: |\n      cd myproject\n      scp dist/ server:/var/www/\n```\n\nWhat's wrong and how do I fix it?",
+      "expected_output": "Identifies two bugs: (1) secret in environment: is printed by set -xe — should use secrets: UUID; (2) cd in build task doesn't persist to deploy task — each task is a fresh session, so need to cd myproject in deploy too. Produces corrected .build.yml with secrets: field and fixed paths.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I want to migrate this GitHub Actions workflow to sr.ht:\n\n```yaml\nname: CI\non:\n  push:\n    branches: [main]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with:\n          python-version: '3.12'\n      - run: pip install -r requirements.txt\n      - run: pytest\n      - name: notify\n        if: failure()\n        run: echo \"build failed\"\n```\n\nMy repo is at https://git.sr.ht/~bob/myproject",
+      "expected_output": "A .build.yml using ubuntu/lts (matching ubuntu-latest), packages including python3 and python3-pip (or equivalent), sources pointing to the sr.ht repo, tasks for installing deps and running pytest, a submitter block for refs/heads/main, and a failure email/webhook trigger replacing the 'notify' step. No actions/checkout needed since git.sr.ht injects the source.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "I'm writing a release pipeline in bash. After I tag a release, I want to automatically submit my .build.yml to builds.sr.ht and then wait until the build succeeds or fails before continuing. How do I do that with the API?",
+      "expected_output": "A bash script using curl to POST to https://builds.sr.ht/api/jobs with the manifest YAML as a JSON string, capturing the job ID from the response, then polling GET /api/jobs/:id until status is 'success' or 'failed'. Should show OAuth token usage (Authorization: Bearer header), correct JSON encoding of the YAML manifest, and a polling loop with sleep.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "My build keeps printing my deploy token in the logs even though I'm using secrets: with a UUID. Here's the leaking task:\n\n```yaml\ntasks:\n  - deploy: |\n      curl -H \"Authorization: Bearer $(cat ~/.secrets/deploy_token)\" https://example.org/deploy\n```\n\nHow do I stop it from leaking?",
+      "expected_output": "Explains that set -xe (the task preamble) echoes every command including the command substitution $(cat ~/.secrets/...) with its expanded value. Fix: add set +x before the sensitive command to disable echoing, and optionally append >/dev/null 2>&1 to suppress any output. Then set -x to re-enable. Shows the corrected task.",
+      "files": []
+    }
+  ]
+}
